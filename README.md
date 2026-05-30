@@ -1,1 +1,1 @@
-# price-tracker
+# RetaillQ
