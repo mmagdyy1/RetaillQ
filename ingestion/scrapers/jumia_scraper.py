@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import time
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -14,6 +15,22 @@ HEADERS = {
     "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
 }
+
+def extract_product_id(url):
+    if not url:
+        return None
+    match = re.search(r'-(\d+)\.html', url)
+    if match:
+        return f"{match.group(1)}_jumia"
+    return None
+
+def clean_url(url):
+    if not url:
+        return None
+    match = re.search(r'(https://www\.jumia\.com\.eg/[^?]+\.html)', url)
+    if match:
+        return match.group(1)
+    return url
 
 def scrape_jumia_search(search_url, pages=3):
     try:
@@ -30,8 +47,11 @@ def scrape_jumia_search(search_url, pages=3):
                     title = item.find("h3", {"class": "name"})
                     price = item.find("div", {"class": "prc"})
                     old_price = item.find("div", {"class": "old"})
-                    discount = item.find("div", {"class": "bdg _dsct"})
+                    discount = item.find("div", {"class": "bdg _dsct _sm"})
+                    if not discount:
+                        discount = item.find("div", {"class": "bdg _dsct"})
                     rating = item.find("div", {"class": "stars _s"})
+                    reviews = item.find("div", {"class": "rev"})
                     link = item.find("a", {"class": "core"}, href=True)
                     image = item.find("img", {"class": "img"})
 
@@ -62,15 +82,30 @@ def scrape_jumia_search(search_url, pages=3):
                         except:
                             old_price_val = None
 
+                    reviews_val = None
+                    if reviews:
+                        try:
+                            reviews_text = reviews.get_text(strip=True)
+                            reviews_match = re.search(r'\((\d+)\)', reviews_text)
+                            reviews_val = reviews_match.group(1) if reviews_match else reviews_text
+                        except:
+                            reviews_val = None
+
+                    raw_url = "https://www.jumia.com.eg" + link["href"] if link else None
+                    product_id = extract_product_id(raw_url)
+                    full_url = clean_url(raw_url)
+
                     product = {
+                        "product_id": product_id,
                         "source": "jumia",
                         "category": search_url.split("q=")[-1].split("&")[0],
-                        "title": title.get_text(strip=True),
+                        "title": f"{title.get_text(strip=True)} - jumia",
                         "price": price_val,
                         "old_price": old_price_val,
                         "discount": discount.get_text(strip=True) if discount else None,
                         "rating": rating.get_text(strip=True) if rating else None,
-                        "url": "https://www.jumia.com.eg" + link["href"] if link else None,
+                        "reviews": reviews_val,
+                        "url": full_url,
                         "image": image["data-src"] if image and image.get("data-src") else None,
                         "scraped_at": datetime.utcnow().isoformat()
                     }
@@ -89,36 +124,6 @@ def scrape_jumia_search(search_url, pages=3):
     except Exception as e:
         print(f"Error scraping Jumia: {e}")
         return []
-
-def scrape_jumia_product(url):
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        title = soup.find("h1", {"class": "-fs20 -pts -pbxs"})
-        price = soup.find("span", {"class": "-b -ltr -tal -fs24"})
-        availability = soup.find("div", {"class": "-pbs"})
-
-        product = {
-            "source": "jumia",
-            "url": url,
-            "title": title.get_text(strip=True) if title else None,
-            "price": float(
-                price.get_text(strip=True)
-                .replace(",", "")
-                .replace("EGP", "")
-                .strip()
-            ) if price else None,
-            "availability": availability.get_text(strip=True) if availability else None,
-            "scraped_at": datetime.utcnow().isoformat()
-        }
-
-        print(f"Scraped: {product['title']} - {product['price']}")
-        return product
-
-    except Exception as e:
-        print(f"Error scraping {url}: {e}")
-        return None
 
 if __name__ == "__main__":
     products = scrape_jumia_search("https://www.jumia.com.eg/catalog/?q=laptop")
