@@ -32,38 +32,47 @@ def get_driver():
         service=Service(ChromeDriverManager().install()),
         options=options
     )
+
+    # Hide webdriver flag to reduce bot detection
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
     return driver
+
 
 def extract_product_id(url):
     if not url:
         return None
-    # /N41964615A/p/ or /N70298796V/p/
+
+    # Match product ID like /N41964615A/p/ or /N70298796V/p/
     match = re.search(r'/([A-Z][A-Z0-9]+)/p/', url)
     if match:
         return f"{match.group(1)}_noon"
     return None
 
+
 def clean_url(url):
     if not url:
         return None
+
+    # Convert relative URLs to absolute URLs
     if url.startswith("/"):
         return "https://www.noon.com" + url
     return url
 
+
 def parse_rating_reviews(item):
     """
-    rating في div[class*="textCtr"] — reviews في span جوا div[class*="countCtr"]
+    Rating is inside div[class*="textCtr"]
+    Reviews are inside span inside div[class*="countCtr"]
     """
     rating = None
     reviews = None
 
-    # Rating — div[class*="textCtr"] بيحتوي على "4.6"
+    # Extract rating value
     rating_tag = item.find("div", {"class": lambda x: x and "textCtr" in x})
     if rating_tag:
         rating = rating_tag.get_text(strip=True)
 
-    # Reviews — span جوا div[class*="countCtr"] بيحتوي على "5.6K"
+    # Extract reviews count
     count_container = item.find("div", {"class": lambda x: x and "countCtr" in x})
     if count_container:
         span = count_container.find("span")
@@ -72,6 +81,7 @@ def parse_rating_reviews(item):
 
     return rating, reviews
 
+
 def scrape_noon_search(search_url, pages=3, category_name=None):
     products = []
     driver = get_driver()
@@ -79,30 +89,33 @@ def scrape_noon_search(search_url, pages=3, category_name=None):
     try:
         for page in range(1, pages + 1):
             url = f"{search_url}&page={page}"
+
             try:
                 driver.get(url)
 
+                # Wait until product cards are loaded
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-qa='plp-product-box']"))
                 )
 
-                # scroll لتحميل الصور الـ lazy
+                # Scroll to trigger lazy-loaded content
                 for _ in range(5):
                     driver.execute_script("window.scrollBy(0, 600);")
                     time.sleep(0.6)
+
                 time.sleep(1.5)
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
                 items = soup.find_all("div", {"data-qa": "plp-product-box"})
 
                 for item in items:
-                    # Title
+                    # Extract product title
                     title_tag = item.find("h2", {"data-qa": "plp-product-box-name"})
                     if not title_tag:
                         continue
                     title = f"{title_tag.get_text(strip=True)} - noon"
 
-                    # Current Price
+                    # Extract current price
                     price = None
                     price_container = item.find("div", {"data-qa": "plp-product-box-price"})
                     if price_container:
@@ -118,7 +131,7 @@ def scrape_noon_search(search_url, pages=3, category_name=None):
                             except:
                                 pass
 
-                    # Old Price
+                    # Extract old price (if exists)
                     old_price = None
                     old_price_tag = item.find("span", {"class": lambda x: x and "oldPrice" in x})
                     if not old_price_tag:
@@ -134,22 +147,22 @@ def scrape_noon_search(search_url, pages=3, category_name=None):
                         except:
                             pass
 
-                    # Discount
+                    # Extract discount label
                     discount = None
                     discount_tag = item.find("span", {"class": lambda x: x and "discount" in x})
                     if discount_tag:
                         discount = discount_tag.get_text(strip=True)
 
-                    # Rating + Reviews (مفصولين)
+                    # Extract rating and reviews
                     rating, reviews = parse_rating_reviews(item)
 
-                    # Link
+                    # Extract product link
                     link_tag = item.find("a", href=True)
                     raw_link = link_tag["href"] if link_tag else None
                     link = clean_url(raw_link)
                     product_id = extract_product_id(link)
 
-                    # Image — img[class*="productImage"] بعد lazy load
+                    # Extract image URL
                     image = None
                     img_tag = item.find("img", {"class": lambda x: x and "productImage" in x})
                     if not img_tag:
@@ -173,6 +186,7 @@ def scrape_noon_search(search_url, pages=3, category_name=None):
                         "image": image,
                         "scraped_at": datetime.utcnow().isoformat()
                     }
+
                     products.append(product)
 
                 print(f"Noon page {page}: {len(items)} products")
@@ -188,6 +202,8 @@ def scrape_noon_search(search_url, pages=3, category_name=None):
     print(f"Total from Noon: {len(products)} products")
     return products
 
+
+# Category search URLs
 CATEGORIES = {
     "laptops":     "https://www.noon.com/egypt-en/search/?q=laptop",
     "mobiles":     "https://www.noon.com/egypt-en/search/?q=mobile",
@@ -196,14 +212,18 @@ CATEGORIES = {
     "tablets":     "https://www.noon.com/egypt-en/search/?q=tablet",
 }
 
+
 def scrape_all_categories(pages=3):
     all_products = []
+
     for category, url in CATEGORIES.items():
         print(f"\n--- Scraping: {category} ---")
         products = scrape_noon_search(url, pages=pages, category_name=category)
         all_products.extend(products)
+
     print(f"\nTotal all categories: {len(all_products)} products")
     return all_products
+
 
 if __name__ == "__main__":
     all_products = scrape_all_categories(pages=3)
