@@ -1,34 +1,45 @@
 services:
 
   zookeeper:
-    image: wurstmeister/zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.3.2
     container_name: zookeeper
     ports:
       - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: wurstmeister/kafka:latest
+    image: confluentinc/cp-kafka:7.3.2
     container_name: kafka
     depends_on:
       - zookeeper
     ports:
       - "9092:9092"
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "raw.prices:1:1,raw.inventory:1:1,raw.products:1:1"
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
   spark:
-    image: apache/spark:3.5.0
-    container_name: spark
+    image: quay.io/jupyter/all-spark-notebook:spark-3.5.3
     ports:
-      - "8080:8080"
-      - "7077:7077"
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
-
-  spark-worker:
-    image: apache/spark:3.5.0
-    container_name: spark-worker
-    depends_on:
-      - spark
-    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
+      - "8888:8888"
+      - "4040:4040"
+      - "18180:18080"
+      - "8501:8501"
+    environment:
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON_OPTS='notebook --ip=0.0.0.0 --no-browser --allow-root'
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+      - KAFKA_BOOTSTRAP_SERVERS_INTERNAL=kafka:29092
+    volumes:
+      - .:/home/jovyan/work
