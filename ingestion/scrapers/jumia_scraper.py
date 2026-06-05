@@ -32,7 +32,7 @@ def clean_url(url):
         return match.group(1)
     return url
 
-def scrape_jumia_search(search_url, pages=3):
+def scrape_jumia_search(search_url, pages=3, category_name=None):
     try:
         products = []
 
@@ -98,7 +98,7 @@ def scrape_jumia_search(search_url, pages=3):
                     product = {
                         "product_id": product_id,
                         "source": "jumia",
-                        "category": search_url.split("q=")[-1].split("&")[0],
+                        "category": category_name or search_url.split("q=")[-1].split("&")[0],
                         "title": f"{title.get_text(strip=True)} - jumia",
                         "price": price_val,
                         "old_price": old_price_val,
