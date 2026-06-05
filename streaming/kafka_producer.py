@@ -1,10 +1,15 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from kafka import KafkaProducer
 import json
 import time
 from datetime import datetime
 from ingestion.scrapers.jumia_scraper import scrape_jumia_search
-from ingestion.scrapers.noon_scraper import scrape_noon_search, get_driver
-from ingestion.scrapers.amazon_scraper import scrape_amazon_search
+from ingestion.scrapers.noon_scraper import scrape_noon_search
+from ingestion.scrapers.amazon_scraper import scrape_amazon_search, get_driver as get_amazon_driver
+from ingestion.scrapers.noon_scraper import get_driver as get_noon_driver
 from dotenv import load_dotenv
 import os
 
@@ -34,7 +39,8 @@ def send_to_kafka(topic, data):
 
 def run_pipeline():
     while True:
-        noon_driver = get_driver()
+        noon_driver   = get_noon_driver()
+        amazon_driver = get_amazon_driver()
         try:
             for term, category_name in SEARCH_TERMS.items():
                 print(f"\n{'='*40}")
@@ -42,26 +48,32 @@ def run_pipeline():
                 print(f"{'='*40}")
 
                 jumia_data = scrape_jumia_search(
-                    f"https://www.jumia.com.eg/catalog/?q={term}", pages=3
+                    f"https://www.jumia.com.eg/catalog/?q={term}",
+                    pages=5,
+                    category_name=category_name
                 )
                 send_to_kafka("raw.products", jumia_data)
 
                 noon_data = scrape_noon_search(
                     f"https://www.noon.com/egypt-en/search/?q={term}",
-                    pages=3,
+                    pages=5,
                     category_name=category_name,
                     driver=noon_driver
                 )
                 send_to_kafka("raw.products", noon_data)
 
                 amazon_data = scrape_amazon_search(
-                    f"https://www.amazon.eg/s?k={term}", pages=3
+                    f"https://www.amazon.eg/s?k={term}",
+                    pages=5,
+                    category_name=category_name,
+                    driver=amazon_driver
                 )
                 send_to_kafka("raw.products", amazon_data)
 
                 time.sleep(3)
         finally:
             noon_driver.quit()
+            amazon_driver.quit()
 
         print("\nWaiting 5 minutes before next scrape...")
         time.sleep(300)
