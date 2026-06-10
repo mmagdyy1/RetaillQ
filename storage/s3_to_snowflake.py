@@ -8,15 +8,15 @@ import hashlib
 import datetime
 
 # AWS Config
-AWS_ACCESS_KEY_ID     = "YOUR_AWS_ACCESS_KEY_ID"
-AWS_SECRET_ACCESS_KEY = "p9sJFXL5tWKPytGyhanZp9PGrKG3o2kMq+NZDcgr"
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_BUCKET             = "retailiq-datalake"
 S3_PREFIX             = "raw/products/"
 
 # Snowflake Config
-SF_USER      = "MMAGDYY1"
-SF_PASSWORD  = "Mohamed12345@#"
-SF_ACCOUNT   = "kpvhttk-ir63402"
+SF_USER      = os.getenv("SF_USER")
+SF_PASSWORD  = os.getenv("SF_PASSWORD")
+SF_ACCOUNT   = os.getenv("SF_ACCOUNT")
 SF_DATABASE  = "RETAILQ"
 SF_WAREHOUSE = "COMPUTE_WH"
 
