@@ -1,17 +1,16 @@
-version: '3.8'
-
 services:
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
+    image: confluentinc/cp-zookeeper:7.3.2
     container_name: zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
     ports:
       - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.3.2
     container_name: kafka
     depends_on:
       - zookeeper
@@ -20,23 +19,123 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
   spark:
-    image: bitnami/spark:3.5.0
-    container_name: spark
+    image: quay.io/jupyter/all-spark-notebook:spark-3.5.3
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+      - "18180:18080"
+      - "8501:8501"
     environment:
-      SPARK_MODE: master
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON_OPTS='notebook --ip=0.0.0.0 --no-browser --allow-root'
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+      - KAFKA_BOOTSTRAP_SERVERS_INTERNAL=kafka:29092
+    volumes:
+      - .:/home/jovyan/work
+
+  postgres:
+    image: postgres:16
+    container_name: postgres-airflow
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      TZ: Africa/Cairo
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+    restart: always
+
+  airflow-init:
+    image: apache/airflow:2.9.3
+    container_name: airflow-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Africa/Cairo
+      TZ: Africa/Cairo
+    volumes:
+      - .:/opt/airflow/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: >
+      bash -c "
+        pip install snowflake-connector-python boto3 pandas pyarrow scikit-learn --quiet &&
+        airflow db migrate &&
+        airflow users create --username airflow --password airflow --firstname Admin --lastname User --role Admin --email admin@retailiq.com || true
+      "
+    restart: "no"
+
+  airflow-webserver:
+    image: apache/airflow:2.9.3
+    container_name: airflow-webserver
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
-      - "7077:7077"
-
-  spark-worker:
-    image: bitnami/spark:3.5.0
-    container_name: spark-worker
-    depends_on:
-      - spark
     environment:
-      SPARK_MODE: worker
-      SPARK_MASTER_URL: spark://spark:7077
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Africa/Cairo
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      TZ: Africa/Cairo
+    volumes:
+      - .:/opt/airflow/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: webserver
+    restart: always
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.3
+    container_name: airflow-scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: Africa/Cairo
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      S3_BUCKET: ${S3_BUCKET}
+      TZ: Africa/Cairo
+    volumes:
+      - .:/opt/airflow/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+    command: scheduler
+    restart: always
+
+volumes:
+  postgres-db:
