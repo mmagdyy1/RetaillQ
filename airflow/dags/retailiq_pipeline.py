@@ -21,7 +21,7 @@ with DAG(
     dag_id="retailiq_pipeline",
     default_args=default_args,
     description="ETL: S3 → Snowflake + Anomaly Detection",
-    schedule_interval="0 */6 * * *",   # every 6 hours
+    schedule_interval="0 */6 * * *",   
     start_date=datetime(2026, 1, 1),
     catchup=False,
     tags=["retailiq", "etl", "ml"],

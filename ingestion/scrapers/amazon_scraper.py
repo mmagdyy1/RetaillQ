@@ -75,14 +75,12 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
             try:
                 driver.get(url)
 
-                # انتظر لحد ما المنتجات تظهر
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR, "div[data-component-type='s-search-result']")
                     )
                 )
 
-                # scroll خفيف علشان الصور تتحمّل
                 for _ in range(3):
                     driver.execute_script("window.scrollBy(0, 800);")
                     time.sleep(0.5)
@@ -90,7 +88,7 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
 
-                # CAPTCHA check
+                
                 captcha = soup.find("form", {"action": "/errors/validateCaptcha"})
                 if captcha:
                     print(f"Amazon page {page}: CAPTCHA detected, skipping")
@@ -99,7 +97,7 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
                 items = soup.find_all("div", {"data-component-type": "s-search-result"})
 
                 for item in items:
-                    # Title
+                    
                     title_tag = item.find("h2", {"class": "a-size-base-plus a-spacing-none a-color-base a-text-normal"})
                     if not title_tag:
                         title_tag = item.find("h2")
@@ -107,7 +105,7 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
                         continue
                     title = f"{title_tag.get_text(strip=True)} - amazon"
 
-                    # Current Price
+                    
                     price = None
                     price_tag = item.find("span", {"class": "a-price-whole"})
                     if price_tag:
@@ -130,7 +128,7 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
                             except:
                                 pass
 
-                    # Old Price
+                    
                     old_price = None
                     old_price_tag = item.find("span", {"class": "a-price a-text-price"})
                     if old_price_tag:
@@ -151,19 +149,19 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
                         except:
                             pass
 
-                    # Rating
+                    
                     rating = None
                     rating_tag = item.find("i", {"class": lambda x: x and "a-star-mini" in x})
                     if rating_tag:
                         rating = rating_tag.get_text(strip=True)
 
-                    # Reviews
+                    
                     reviews = None
                     reviews_tag = item.find("span", {"class": "a-size-mini puis-normal-weight-text s-underline-text"})
                     if reviews_tag:
                         reviews = reviews_tag.get_text(strip=True)
 
-                    # Link
+                    
                     link_tag = item.find("a", {"class": "a-link-normal s-no-hover s-underline-text s-underline-link-text s-link-style a-text-normal"})
                     if not link_tag:
                         link_tag = item.find("a", {"class": "a-link-normal s-no-outline"})
@@ -171,7 +169,7 @@ def scrape_amazon_search(search_url, pages=5, category_name=None, driver=None):
                     link = clean_url(raw_link)
                     product_id = extract_product_id(raw_link)
 
-                    # Image
+                    
                     image = None
                     img_tag = item.find("img", {"class": "s-image"})
                     if img_tag:

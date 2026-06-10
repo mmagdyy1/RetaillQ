@@ -21,9 +21,9 @@ SF_ACCOUNT   = "kpvhttk-ir63402"
 SF_DATABASE  = "RETAILQ"
 SF_WAREHOUSE = "COMPUTE_WH"
 
-MAX_DISCOUNT     = 70.0   # discount > 70% is suspicious
-MIN_PRODUCTS_CAT = 5      # min products to run stats
-MIN_PRICE_RATIO  = 0.05   # price < 5% of category median = scraping error
+MAX_DISCOUNT     = 70.0   
+MIN_PRODUCTS_CAT = 5      
+MIN_PRICE_RATIO  = 0.05   
 
 def get_conn(schema="SILVER"):
     return snowflake.connector.connect(
@@ -67,7 +67,7 @@ def detect_scraping_errors(df):
         if len(grp) < MIN_PRODUCTS_CAT:
             continue
         median_p = grp["price"].median()
-        # Threshold: less than 5% of median = scraping error
+        
         threshold = median_p * MIN_PRICE_RATIO
         flagged   = grp[grp["price"] < threshold]
         for _, r in flagged.iterrows():

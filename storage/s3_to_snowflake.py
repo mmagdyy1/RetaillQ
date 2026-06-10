@@ -7,13 +7,13 @@ import re
 import hashlib
 import datetime
 
-# AWS Config
+
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_BUCKET             = "retailiq-datalake"
 S3_PREFIX             = "raw/products/"
 
-# Snowflake Config
+
 SF_USER      = os.getenv("SF_USER")
 SF_PASSWORD  = os.getenv("SF_PASSWORD")
 SF_ACCOUNT   = os.getenv("SF_ACCOUNT")
@@ -69,7 +69,6 @@ def clean_reviews(val):
     cleaned = re.sub(r"[(),\s]", "", str(val))
     return cleaned if cleaned.isdigit() else "0"
 
-# تطبيع أسماء الكاتيجوريز — يمنع مشكلة "laptop" vs "laptops"
 CATEGORY_MAP = {
     "laptop":     "laptops",
     "mobile":     "mobiles",
@@ -108,16 +107,16 @@ def get_conn(schema="SILVER"):
     )
 
 # ──────────────────────────────────────────────────────────────
-# SILVER — MERGE على (product_id, DATE(scraped_at))
-# نفس المنتج في نفس اليوم → UPDATE السعر
-# منتج جديد أو يوم جديد → INSERT
+
+
+
 # ──────────────────────────────────────────────────────────────
 def load_silver(df):
     print("Loading Silver (MERGE)...")
     conn = get_conn("SILVER")
     cur  = conn.cursor()
 
-    # Staging table مؤقتة للـ session
+    
     cur.execute("""
         CREATE OR REPLACE TEMPORARY TABLE SILVER_STAGING (
             product_id  VARCHAR,
@@ -135,7 +134,7 @@ def load_silver(df):
         )
     """)
 
-    # Dedup: لو نفس المنتج اتسحب أكتر من مرة في نفس اليوم → خد آخر record
+    
     df_dedup = df.copy()
     df_dedup["scraped_date"] = df_dedup["scraped_at"].dt.date
     df_dedup = (
@@ -168,7 +167,7 @@ def load_silver(df):
         rows
     )
 
-    # Dedup جوه Snowflake: لو نفس المنتج في نفس اليوم أكتر من مرة → خد الأحدث
+    
     cur.execute("""
         CREATE OR REPLACE TEMPORARY TABLE SILVER_STAGING_DEDUP AS
         SELECT * EXCLUDE (rn) FROM (
@@ -211,17 +210,16 @@ def load_silver(df):
     conn.close()
 
 # ──────────────────────────────────────────────────────────────
-# GOLD STAR SCHEMA
+
 # ──────────────────────────────────────────────────────────────
 def load_star_schema(df):
     print("Building Star Schema...")
     conn = get_conn("GOLD")
     cur  = conn.cursor()
 
-    # ── DIM_PRODUCT — MERGE (SCD Type 1) ─────────────────────
-    # محتفظين بكل المنتجات اللي شفناها من أول المشروع
-    # لو بيانات المنتج اتغيرت → UPDATE (title/url/image)
-    # لو منتج جديد → INSERT
+    
+    
+    
     cur.execute("""
         CREATE OR REPLACE TEMPORARY TABLE DIM_PRODUCT_STAGING (
             product_id VARCHAR, title VARCHAR, url VARCHAR, image VARCHAR
@@ -246,8 +244,8 @@ def load_star_schema(df):
     cur.execute("SELECT COUNT(*) FROM RETAILQ.GOLD.DIM_PRODUCT")
     print(f"  DIM_PRODUCT: {cur.fetchone()[0]} total rows.")
 
-    # ── DIM_SOURCE — MERGE (insert new only) ─────────────────
-    # بنحتفظ بالـ source_id القديم علشان ما نكسرش الـ FK في FACT
+    
+    
     cur.execute("""
         CREATE OR REPLACE TEMPORARY TABLE DIM_SOURCE_STAGING (
             source_name VARCHAR
@@ -268,8 +266,8 @@ def load_star_schema(df):
     cur.execute("SELECT COUNT(*) FROM RETAILQ.GOLD.DIM_SOURCE")
     print(f"  DIM_SOURCE: {cur.fetchone()[0]} rows.")
 
-    # ── DIM_CATEGORY — MERGE (insert new only) ───────────────
-    # نفس منطق DIM_SOURCE
+    
+    
     cur.execute("""
         CREATE OR REPLACE TEMPORARY TABLE DIM_CATEGORY_STAGING (
             category_name VARCHAR
@@ -290,8 +288,7 @@ def load_star_schema(df):
     cur.execute("SELECT COUNT(*) FROM RETAILQ.GOLD.DIM_CATEGORY")
     print(f"  DIM_CATEGORY: {cur.fetchone()[0]} rows.")
 
-    # ── DIM_DATE — INSERT new dates only ─────────────────────
-    # ما بنمسحش التواريخ القديمة — بنضيف الجديد بس
+    
     dates = df["scraped_at"].dropna().dt.date.unique()
     date_rows = []
     for d in dates:
@@ -316,9 +313,7 @@ def load_star_schema(df):
         inserted_dates += 1
     print(f"  DIM_DATE: processed {inserted_dates} dates.")
 
-    # ── FACT_PRICES — MERGE على (product_id, source_id, date_id) ─
-    # ما بنكررش نفس المنتج من نفس المصدر في نفس اليوم
-    # بيتراكم مع الوقت → price history حقيقي
+    
     cur.execute("""
         MERGE INTO RETAILQ.GOLD.FACT_PRICES AS tgt
         USING (
@@ -349,7 +344,7 @@ def load_star_schema(df):
     cur.execute("SELECT COUNT(*) FROM RETAILQ.GOLD.FACT_PRICES")
     print(f"  FACT_PRICES: {cur.fetchone()[0]} total rows.")
 
-    # ── Gold Views ────────────────────────────────────────────
+    
     print("Refreshing Gold views...")
 
     cur.execute("""

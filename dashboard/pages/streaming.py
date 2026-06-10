@@ -14,48 +14,48 @@ try:
 except ImportError:
     pass
 
-# localhost:9092 لما بتشغّل locally — kafka:29092 جوه Docker
+
 KAFKA_BROKER = (
     os.getenv("KAFKA_BOOTSTRAP_SERVERS") or
     os.getenv("KAFKA_BOOTSTRAP_SERVERS_INTERNAL") or
     "localhost:9092"
 )
 TOPIC        = "raw.products"
-CARD_BG      = "#1a1d27"
-ACCENT       = "#6C63FF"
-COLORS       = {"jumia": "#FF6B35", "noon": "#FECC00", "amazon": "#00A8E1"}
+CARD_BG      = "
+ACCENT       = "
+COLORS       = {"jumia": "#FF6B35", "noon": "#FECC00", "amazon": "
 
-# ── CSS ────────────────────────────────────────────────────────
+
 def inject_css():
     st.markdown(f"""
     <style>
       .kpi-card {{
         background:{CARD_BG}; border-radius:16px; padding:20px;
-        text-align:center; border:1px solid #2a2d3e;
+        text-align:center; border:1px solid 
       }}
-      .kpi-label {{ font-size:.78rem; color:#9399b2; text-transform:uppercase; letter-spacing:.08em; }}
-      .kpi-value {{ font-size:1.8rem; font-weight:800; color:#fff; margin:4px 0; }}
-      .kpi-sub   {{ font-size:.72rem; color:#6C63FF; }}
+      .kpi-label {{ font-size:.78rem; color:
+      .kpi-value {{ font-size:1.8rem; font-weight:800; color:
+      .kpi-sub   {{ font-size:.72rem; color:
 
       .section-title {{
-        font-size:1.15rem; font-weight:700; color:#fff;
+        font-size:1.15rem; font-weight:700; color:
         border-left:4px solid {ACCENT}; padding-left:12px; margin:28px 0 12px;
       }}
 
       .kafka-connected {{
-        background:#1a2e1a; border:1px solid #2ecc71; border-radius:10px;
-        padding:8px 16px; font-size:.85rem; color:#2ecc71;
+        background:#1a2e1a; border:1px solid 
+        padding:8px 16px; font-size:.85rem; color:
         display:inline-flex; align-items:center; gap:8px;
       }}
       .kafka-disconnected {{
-        background:#2e1a1a; border:1px solid #e74c3c; border-radius:10px;
-        padding:8px 16px; font-size:.85rem; color:#e74c3c;
+        background:#2e1a1a; border:1px solid 
+        padding:8px 16px; font-size:.85rem; color:
         display:inline-flex; align-items:center; gap:8px;
       }}
 
       .live-dot {{
         display:inline-block; width:9px; height:9px; border-radius:50%;
-        background:#2ecc71; animation:pulse 1.5s infinite; margin-left:8px;
+        background:
       }}
       @keyframes pulse {{
         0%   {{ box-shadow:0 0 0 0 rgba(46,204,113,.6); }}
@@ -65,7 +65,7 @@ def inject_css():
     </style>
     """, unsafe_allow_html=True)
 
-def kpi(label, value, sub="", color="#6C63FF"):
+def kpi(label, value, sub="", color="
     st.markdown(f"""
     <div class="kpi-card">
         <div class="kpi-label">{label}</div>
@@ -73,7 +73,7 @@ def kpi(label, value, sub="", color="#6C63FF"):
         <div class="kpi-sub" style="color:{color}">{sub}</div>
     </div>""", unsafe_allow_html=True)
 
-# ── Kafka consumer ─────────────────────────────────────────────
+
 def get_consumer():
     if "kafka_consumer" not in st.session_state:
         try:
@@ -111,7 +111,7 @@ def fetch_messages():
         st.session_state.kafka_connected = False
         return []
 
-# ── Accumulate ─────────────────────────────────────────────────
+
 def accumulate(existing: pd.DataFrame, new_msgs: list) -> pd.DataFrame:
     if not new_msgs:
         return existing
@@ -124,7 +124,7 @@ def accumulate(existing: pd.DataFrame, new_msgs: list) -> pd.DataFrame:
         ).reset_index(drop=True)
     return combined
 
-# ── Business helpers ───────────────────────────────────────────
+
 def extract_specs(title):
     t = str(title).lower()
     specs = re.findall(r'\d+\.?\d*\s*(?:gb|tb|ssd|hdd|mp|inch|"|hz|mah|k\b)', t)
@@ -208,23 +208,23 @@ def get_cheapest_source(df):
     idx = grp.groupby("category")["avg_price"].idxmin()
     return grp.loc[idx].sort_values("avg_price")
 
-# ── Main ───────────────────────────────────────────────────────
+
 def show():
     inject_css()
 
-    # Header
+    
     st.markdown("""
     <div style="padding:16px 0 8px">
         <h1 style="font-size:2rem;font-weight:900;margin:0">
-            ⚡ <span style="color:#2ecc71">Live</span> Market Intelligence
+            ⚡ <span style="color:
             <span class="live-dot"></span>
         </h1>
-        <p style="color:#9399b2;margin:4px 0 0">Real-time price tracking across Jumia · Noon · Amazon Egypt</p>
+        <p style="color:
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
 
-    # ── Kafka Status + Controls ────────────────────────────────
+    
     connected = st.session_state.get("kafka_connected", None)
     status_col, c1, c2, c3 = st.columns([3, 2, 1, 1])
 
@@ -247,13 +247,13 @@ def show():
                 del st.session_state["kafka_consumer"]
             st.rerun()
 
-    # Session state init
+    
     if "stream_df" not in st.session_state:
         st.session_state.stream_df = pd.DataFrame()
     if "msg_count" not in st.session_state:
         st.session_state.msg_count = 0
 
-    # Fetch
+    
     if auto or manual:
         msgs = fetch_messages()
         if msgs:
@@ -268,7 +268,7 @@ def show():
             st.rerun()
         return
 
-    # Normalize
+    
     df.columns = [c.lower() for c in df.columns]
     if "price" in df.columns:
         df["price"] = pd.to_numeric(df["price"], errors="coerce")
@@ -276,7 +276,7 @@ def show():
         df["discount"] = "0%"
     df["discount"] = df["discount"].fillna("0%").replace("None","0%")
 
-    # Sidebar filters
+    
     with st.sidebar:
         st.markdown("### 🔍 Live Filters")
         all_cats = sorted(df["category"].dropna().unique().tolist()) if "category" in df.columns else []
@@ -287,7 +287,7 @@ def show():
     if sel_cats: df = df[df["category"].isin(sel_cats)]
     if sel_src:  df = df[df["source"].isin(sel_src)]
 
-    # ── 1. KPIs ───────────────────────────────────────────────
+    
     st.markdown('<div class="section-title">📊 Live Market Overview</div>', unsafe_allow_html=True)
     k1, k2, k3, k4 = st.columns(4)
 
@@ -299,11 +299,11 @@ def show():
     deals_count = int((disc["disc_num"] > 0).sum())
 
     with k1: kpi("Tracked Products", f"{len(df):,}", "unique live")
-    with k2: kpi("Categories", str(df["category"].nunique() if "category" in df.columns else 0), "active", "#FF6B35")
-    with k3: kpi("Platforms", str(df["source"].nunique() if "source" in df.columns else 0), "connected", "#FECC00")
-    with k4: kpi("Products w/ Deals", f"{deals_count:,}", "have discount", "#2ecc71")
+    with k2: kpi("Categories", str(df["category"].nunique() if "category" in df.columns else 0), "active", "
+    with k3: kpi("Platforms", str(df["source"].nunique() if "source" in df.columns else 0), "connected", "
+    with k4: kpi("Products w/ Deals", f"{deals_count:,}", "have discount", "
 
-    # ── 2. Platform Activity + Cheapest Platform ───────────────
+    
     col_l, col_r = st.columns(2)
 
     with col_l:
@@ -340,7 +340,7 @@ def show():
             fig_cheap.update_traces(textposition="outside")
             st.plotly_chart(fig_cheap, use_container_width=True)
 
-    # ── 3. Price Comparison (Most Valuable) ───────────────────
+    
     st.markdown('<div class="section-title">⚖️ Same Product — Price Comparison Across Platforms</div>', unsafe_allow_html=True)
     comp = get_price_comparison(df)
     if comp.empty:
@@ -364,7 +364,7 @@ def show():
                      use_container_width=True, height=380, column_config=col_cfg)
         st.caption("⚠️ Matching based on product name similarity. Always verify via links before purchase.")
 
-    # ── 4. Live Price Distribution ─────────────────────────────
+    
     st.markdown('<div class="section-title">📦 Live Price Distribution by Category</div>', unsafe_allow_html=True)
     if "category" in df.columns and "price" in df.columns:
         df_valid = df.dropna(subset=["price","category"])
@@ -382,7 +382,7 @@ def show():
             )
             st.plotly_chart(fig_box, use_container_width=True)
 
-    # ── 5. Best Deals Now ──────────────────────────────────────
+    
     st.markdown('<div class="section-title">🔥 Best Deals Now</div>', unsafe_allow_html=True)
     deals = get_best_deals(df)
     if not deals.empty:
@@ -399,7 +399,7 @@ def show():
             }
         )
 
-    # ── 6. Live Feed ──────────────────────────────────────────
+    
     st.markdown('<div class="section-title">🔴 Live Feed</div>', unsafe_allow_html=True)
     total_msgs = st.session_state.get("msg_count", 0)
     st.caption(f"Total messages received this session: {total_msgs:,}")
@@ -416,7 +416,7 @@ def show():
         }
     )
 
-    # Auto-refresh
+    
     if auto:
         time.sleep(5)
         st.rerun()

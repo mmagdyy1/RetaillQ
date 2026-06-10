@@ -49,33 +49,33 @@ def build_email_html(df):
     for _, r in df.iterrows():
         diff = round(((r["price"] - r["avg_cat_price"]) / r["avg_cat_price"]) * 100, 1)
         sign = "+" if diff > 0 else ""
-        color = "#e74c3c" if diff > 0 else "#2ecc71"
+        color = "#e74c3c" if diff > 0 else "
         rows_html += f"""
         <tr>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;max-width:280px">{str(r['title'])[:60]}...</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:center">{str(r['source']).capitalize()}</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:center">{r['category']}</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:right;font-weight:bold">EGP {r['price']:,.0f}</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:right;color:#9399b2">EGP {r['avg_cat_price']:,.0f}</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:center;color:{color};font-weight:bold">{sign}{diff}%</td>
-          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:center">
-            <a href="{r['url']}" style="color:#6C63FF">View</a>
+          <td style="padding:10px;border-bottom:1px solid 
+          <td style="padding:10px;border-bottom:1px solid 
+          <td style="padding:10px;border-bottom:1px solid 
+          <td style="padding:10px;border-bottom:1px solid 
+          <td style="padding:10px;border-bottom:1px solid #2a2d3e;text-align:right;color:
+          <td style="padding:10px;border-bottom:1px solid 
+          <td style="padding:10px;border-bottom:1px solid 
+            <a href="{r['url']}" style="color:
           </td>
         </tr>
         """
 
     return f"""
     <html>
-    <body style="background:#0f1117;color:#fff;font-family:Arial,sans-serif;padding:20px">
+    <body style="background:#0f1117;color:
       <div style="max-width:900px;margin:0 auto">
-        <div style="background:#1a1d27;border-radius:16px;padding:24px;margin-bottom:20px;border-left:4px solid #e74c3c">
+        <div style="background:#1a1d27;border-radius:16px;padding:24px;margin-bottom:20px;border-left:4px solid 
           <h1 style="margin:0;font-size:1.5rem">🚨 RetailIQ — Price Anomaly Alert</h1>
-          <p style="color:#9399b2;margin:6px 0 0">Detected at {now} · {len(df)} HIGH severity anomalies</p>
+          <p style="color:
         </div>
-        <div style="background:#1a1d27;border-radius:16px;overflow:hidden">
-          <table style="width:100%;border-collapse:collapse;color:#fff">
+        <div style="background:
+          <table style="width:100%;border-collapse:collapse;color:
             <thead>
-              <tr style="background:#6C63FF">
+              <tr style="background:
                 <th style="padding:12px;text-align:left">Product</th>
                 <th style="padding:12px">Platform</th>
                 <th style="padding:12px">Category</th>
@@ -88,7 +88,7 @@ def build_email_html(df):
             <tbody>{rows_html}</tbody>
           </table>
         </div>
-        <p style="text-align:center;color:#9399b2;font-size:.8rem;margin-top:16px">
+        <p style="text-align:center;color:
           RetailIQ Automated Alerts · {now}
         </p>
       </div>

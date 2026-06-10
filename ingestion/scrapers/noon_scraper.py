@@ -38,7 +38,7 @@ def get_driver():
 def extract_product_id(url):
     if not url:
         return None
-    # /N41964615A/p/ or /N70298796V/p/
+    
     match = re.search(r'/([A-Z][A-Z0-9]+)/p/', url)
     if match:
         return f"{match.group(1)}_noon"
@@ -58,12 +58,12 @@ def parse_rating_reviews(item):
     rating = None
     reviews = None
 
-    # Rating — div[class*="textCtr"] بيحتوي على "4.6"
+    
     rating_tag = item.find("div", {"class": lambda x: x and "textCtr" in x})
     if rating_tag:
         rating = rating_tag.get_text(strip=True)
 
-    # Reviews — span جوا div[class*="countCtr"] بيحتوي على "5.6K"
+    
     count_container = item.find("div", {"class": lambda x: x and "countCtr" in x})
     if count_container:
         span = count_container.find("span")
@@ -88,7 +88,6 @@ def scrape_noon_search(search_url, pages=3, category_name=None, driver=None):
                     EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-qa='plp-product-box']"))
                 )
 
-                # scroll لتحميل الصور الـ lazy
                 for _ in range(5):
                     driver.execute_script("window.scrollBy(0, 600);")
                     time.sleep(0.6)
@@ -98,13 +97,13 @@ def scrape_noon_search(search_url, pages=3, category_name=None, driver=None):
                 items = soup.find_all("div", {"data-qa": "plp-product-box"})
 
                 for item in items:
-                    # Title
+                    
                     title_tag = item.find("h2", {"data-qa": "plp-product-box-name"})
                     if not title_tag:
                         continue
                     title = f"{title_tag.get_text(strip=True)} - noon"
 
-                    # Current Price
+                    
                     price = None
                     price_container = item.find("div", {"data-qa": "plp-product-box-price"})
                     if price_container:
@@ -120,7 +119,7 @@ def scrape_noon_search(search_url, pages=3, category_name=None, driver=None):
                             except:
                                 pass
 
-                    # Old Price
+                    
                     old_price = None
                     old_price_tag = item.find("span", {"class": lambda x: x and "oldPrice" in x})
                     if not old_price_tag:
@@ -136,22 +135,22 @@ def scrape_noon_search(search_url, pages=3, category_name=None, driver=None):
                         except:
                             pass
 
-                    # Discount
+                    
                     discount = None
                     discount_tag = item.find("span", {"class": lambda x: x and "discount" in x})
                     if discount_tag:
                         discount = discount_tag.get_text(strip=True)
 
-                    # Rating + Reviews (مفصولين)
+                    
                     rating, reviews = parse_rating_reviews(item)
 
-                    # Link
+                    
                     link_tag = item.find("a", href=True)
                     raw_link = link_tag["href"] if link_tag else None
                     link = clean_url(raw_link)
                     product_id = extract_product_id(link)
 
-                    # Image — img[class*="productImage"] بعد lazy load
+                    
                     image = None
                     img_tag = item.find("img", {"class": lambda x: x and "productImage" in x})
                     if not img_tag:
